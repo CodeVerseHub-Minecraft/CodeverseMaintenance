@@ -69,7 +69,24 @@ public final class DiscordWebhook {
      * be the reason a maintenance window fails to open: the announcement is a
      * courtesy and the gate is the point.
      */
+    /** A field in the embed, rendered as a labelled block rather than prose. */
+    public record Field(String name, String value, boolean inline) {
+    }
+
     public void announce(String title, String description, int colour, boolean resetMessage) {
+        announce(title, description, colour, resetMessage, java.util.List.of());
+    }
+
+    /**
+     * Posts or updates the status message with structured fields.
+     *
+     * Fields rather than a paragraph, because the questions a reader actually
+     * has are separate: is it up, why is it down, when does it come back, and
+     * can I do anything. A block of prose makes each of those something to
+     * search for; a labelled field makes it something to glance at.
+     */
+    public void announce(String title, String description, int colour, boolean resetMessage,
+                         java.util.List<Field> fields) {
         if (!isEnabled()) {
             return;
         }
@@ -77,7 +94,7 @@ public final class DiscordWebhook {
             messageId = null;
         }
         try {
-            JsonObject payload = buildPayload(title, description, colour);
+            JsonObject payload = buildPayload(title, description, colour, fields);
             String existing = messageId;
             if (config.editSingleMessage && existing != null) {
                 if (edit(existing, payload)) {
@@ -120,11 +137,34 @@ public final class DiscordWebhook {
     }
 
     private JsonObject buildPayload(String title, String description, int colour) {
+        return buildPayload(title, description, colour, java.util.List.of());
+    }
+
+    private JsonObject buildPayload(String title, String description, int colour,
+                                    java.util.List<Field> fields) {
         JsonObject embed = new JsonObject();
         embed.addProperty("title", title);
-        embed.addProperty("description", description);
+        if (description != null && !description.isBlank()) {
+            embed.addProperty("description", description);
+        }
         embed.addProperty("color", colour);
         embed.addProperty("timestamp", Instant.now().toString());
+
+        if (!fields.isEmpty()) {
+            JsonArray array = new JsonArray();
+            for (Field field : fields) {
+                JsonObject entry = new JsonObject();
+                entry.addProperty("name", field.name());
+                entry.addProperty("value", field.value());
+                entry.addProperty("inline", field.inline());
+                array.add(entry);
+            }
+            embed.add("fields", array);
+        }
+
+        JsonObject footer = new JsonObject();
+        footer.addProperty("text", "Codeverse Network");
+        embed.add("footer", footer);
 
         JsonArray embeds = new JsonArray();
         embeds.add(embed);

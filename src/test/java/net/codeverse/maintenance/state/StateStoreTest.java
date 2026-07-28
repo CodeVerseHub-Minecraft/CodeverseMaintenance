@@ -79,6 +79,22 @@ class StateStoreTest {
         assertFalse(active.affects("lobby"));
     }
 
+    /**
+     * Whether a window queues arrivals or refuses them has to survive a
+     * restart with the window itself, or a proxy that restarts mid window
+     * would silently change how everyone arriving is treated.
+     */
+    @Test
+    void howArrivalsAreTreatedSurvivesARestart(@TempDir Path tmp) throws IOException {
+        StateStore first = new StateStore(tmp);
+        first.open(window(Instant.now(), Optional.empty(), Set.of()), false);
+        assertFalse(first.holdPlayers());
+        assertFalse(new StateStore(tmp).holdPlayers(), "a restart must not turn a lockout into a queue");
+
+        first.open(window(Instant.now(), Optional.empty(), Set.of()), true);
+        assertTrue(new StateStore(tmp).holdPlayers());
+    }
+
     @Test
     void theAllowlistPersists(@TempDir Path tmp) throws IOException {
         UUID identity = UUID.randomUUID();
@@ -102,6 +118,44 @@ class StateStoreTest {
         Files.writeString(tmp.resolve("maintenance.json"), "{ this is not json",
                 StandardCharsets.UTF_8);
         assertThrows(IOException.class, () -> new StateStore(tmp));
+    }
+
+    /**
+     * The test that was missing. upcoming reports only windows that have not
+     * begun, which is what a consumer wants, so activation cannot use it: a
+     * window would only be activated once it had started, and only reported
+     * while it had not, and the two conditions never overlap. dueSchedule is
+     * the complement, and the pair has to cover every moment between them.
+     */
+    @Test
+    void aScheduleWhoseMomentHasPassedIsDueRatherThanUpcoming(@TempDir Path tmp) throws IOException {
+        StateStore store = new StateStore(tmp);
+        store.schedule(MaintenanceMode.MAINTENANCE, "overdue",
+                Instant.now().minus(Duration.ofMinutes(1)), null);
+
+        assertTrue(store.upcoming().isEmpty(), "it has begun, so it is no longer upcoming");
+        assertTrue(store.dueSchedule().isPresent(), "and it is therefore due to activate");
+        assertEquals("overdue", store.dueSchedule().orElseThrow().reason());
+    }
+
+    @Test
+    void aFutureScheduleIsUpcomingRatherThanDue(@TempDir Path tmp) throws IOException {
+        StateStore store = new StateStore(tmp);
+        store.schedule(MaintenanceMode.MAINTENANCE, "later",
+                Instant.now().plus(Duration.ofHours(1)), null);
+
+        assertTrue(store.upcoming().isPresent());
+        assertTrue(store.dueSchedule().isEmpty(), "not yet, so nothing to activate");
+    }
+
+    @Test
+    void aClearedScheduleIsNeitherDueNorUpcoming(@TempDir Path tmp) throws IOException {
+        StateStore store = new StateStore(tmp);
+        store.schedule(MaintenanceMode.MAINTENANCE, "gone",
+                Instant.now().minus(Duration.ofMinutes(1)), null);
+        store.clearSchedule();
+        assertTrue(store.upcoming().isEmpty());
+        assertTrue(store.dueSchedule().isEmpty(), "a cleared schedule must not activate again");
     }
 
     @Test

@@ -90,6 +90,22 @@ public final class MaintenanceServiceImpl implements MaintenanceService {
                                                      Set<String> servers,
                                                      Optional<Duration> duration,
                                                      UUID triggeredBy) {
+        return open(mode, reason, servers, duration, triggeredBy, true);
+    }
+
+    /**
+     * Opens a window, choosing whether arrivals are queued or refused.
+     *
+     * Queuing is the friendlier default and the reason limbo exists, but a long
+     * window should refuse instead: nobody waits an hour in a lobby, and the
+     * people who tried would occupy limbo the whole time.
+     */
+    public CompletableFuture<MaintenanceWindow> open(MaintenanceMode mode,
+                                                     String reason,
+                                                     Set<String> servers,
+                                                     Optional<Duration> duration,
+                                                     UUID triggeredBy,
+                                                     boolean holdPlayers) {
         if (mode == null || mode == MaintenanceMode.OPEN) {
             throw new IllegalArgumentException("open requires a closed mode; use close to reopen");
         }
@@ -105,7 +121,7 @@ public final class MaintenanceServiceImpl implements MaintenanceService {
                     servers == null ? Set.of() : servers,
                     Optional.ofNullable(triggeredBy));
             try {
-                state.open(window);
+                state.open(window, holdPlayers);
             } catch (IOException failure) {
                 throw new CompletionException(failure);
             }

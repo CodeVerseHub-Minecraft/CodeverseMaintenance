@@ -76,6 +76,14 @@ public final class MaintenanceGate {
             return;
         }
 
+        if (state.holdPlayers()) {
+            // The window queues arrivals rather than refusing them, so nobody
+            // is turned away here. Everyone reaches limbo and waits there, and
+            // the transfer gate decides who may leave it. Refusing at login
+            // would defeat the waiting room entirely.
+            return;
+        }
+
         Player player = event.getPlayer();
         // Velocity reports whether the connection completed encryption, which
         // only happens for an account Mojang verified. Floodgate connections
@@ -141,6 +149,14 @@ public final class MaintenanceGate {
 
         MaintenanceWindow active = window.get();
         if (active.isNetworkWide()) {
+            if (!state.holdPlayers()) {
+                // A window that refuses rather than queues. They are already
+                // connected, so the honest thing is to say why and disconnect
+                // rather than leave them somewhere they cannot act.
+                event.setResult(ServerPreConnectEvent.ServerResult.denied());
+                player.disconnect(closedMessage(active, player.getEffectiveLocale()));
+                return;
+            }
             // Held rather than disconnected: they are already connected, and
             // sending them to the waiting room means they are let in
             // automatically rather than having to watch for the reopening.

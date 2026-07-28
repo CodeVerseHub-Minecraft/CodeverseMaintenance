@@ -54,6 +54,11 @@ public final class StateStore {
         long endsAt = 0L;
         List<String> servers = new ArrayList<>();
         String triggeredBy = null;
+        // Whether this window queues players in limbo rather than turning them
+        // away. Kept beside the window rather than inside it because the shared
+        // API describes what is closed, not how a particular plugin treats the
+        // people who arrive while it is.
+        boolean holdPlayers = true;
         List<String> allowedInternalIds = new ArrayList<>();
         long scheduledStartAt = 0L;
         String scheduledMode = null;
@@ -124,6 +129,39 @@ public final class StateStore {
         MaintenanceWindow window = toWindow(parsed, snapshot.scheduledReason, snapshot.scheduledStartAt,
                 snapshot.scheduledEndsAt, List.of(), null);
         return window.startsInAt(Instant.now()).isPresent() ? Optional.of(window) : Optional.empty();
+    }
+
+    /**
+     * The scheduled window when its moment has arrived, empty otherwise.
+     *
+     * Deliberately the complement of {@link #upcoming()}, which reports only
+     * windows that have not begun because that is what the API contract
+     * promises a consumer. Activation needs the opposite question, and asking
+     * the consumer facing one produced a condition that could never be true:
+     * a window was only activated once it had started, and was only reported
+     * while it had not.
+     */
+    public Optional<MaintenanceWindow> dueSchedule() {
+        if (snapshot.scheduledMode == null || snapshot.scheduledStartAt <= 0L) {
+            return Optional.empty();
+        }
+        MaintenanceMode parsed = parseMode(snapshot.scheduledMode);
+        if (parsed == MaintenanceMode.OPEN) {
+            return Optional.empty();
+        }
+        MaintenanceWindow window = toWindow(parsed, snapshot.scheduledReason, snapshot.scheduledStartAt,
+                snapshot.scheduledEndsAt, List.of(), null);
+        return window.startsInAt(Instant.now()).isEmpty() ? Optional.of(window) : Optional.empty();
+    }
+
+    /** Whether the active window queues arrivals in limbo instead of refusing them. */
+    public boolean holdPlayers() {
+        return snapshot.holdPlayers;
+    }
+
+    public synchronized void open(MaintenanceWindow window, boolean holdPlayers) throws IOException {
+        snapshot.holdPlayers = holdPlayers;
+        open(window);
     }
 
     public synchronized void open(MaintenanceWindow window) throws IOException {

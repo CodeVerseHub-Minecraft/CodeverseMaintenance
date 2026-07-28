@@ -93,8 +93,10 @@ public final class MaintenanceCommand implements SimpleCommand {
         }
 
         switch (args[0].toLowerCase(Locale.ROOT)) {
-            case "on" -> open(source, locale, MaintenanceMode.MAINTENANCE, tail(args, 1));
-            case "prelaunch" -> open(source, locale, MaintenanceMode.PRE_LAUNCH, tail(args, 1));
+            case "on" -> open(source, locale, MaintenanceMode.MAINTENANCE, tail(args, 1), true);
+            case "hold" -> open(source, locale, MaintenanceMode.MAINTENANCE, tail(args, 1), true);
+            case "lock" -> open(source, locale, MaintenanceMode.MAINTENANCE, tail(args, 1), false);
+            case "prelaunch" -> open(source, locale, MaintenanceMode.PRE_LAUNCH, tail(args, 1), false);
             case "off" -> close(source, locale);
             case "server" -> server(source, locale, args);
             case "schedule" -> schedule(source, locale, args);
@@ -126,6 +128,9 @@ public final class MaintenanceCommand implements SimpleCommand {
             source.sendMessage(remaining
                     .map(d -> lang.get("command.status-remaining", locale, "remaining", Durations.describe(d)))
                     .orElseGet(() -> lang.get("command.status-open-ended", locale)));
+            source.sendMessage(lang.get(state.holdPlayers()
+                    ? "command.status-hold" : "command.status-lock", locale,
+                    "held", String.valueOf(holds.heldCount())));
             if (!active.isNetworkWide()) {
                 source.sendMessage(lang.get("command.status-servers", locale,
                         "servers", String.join(", ", active.servers())));
@@ -155,8 +160,13 @@ public final class MaintenanceCommand implements SimpleCommand {
             row = row.append(button("<green>[ open the network ]</green>",
                     "/maintenance off", true, "Reopen and release held players"));
         } else {
-            row = row.append(button("<red>[ close for maintenance ]</red>",
-                    "/maintenance on ", false, "Type a reason, then enter"));
+            row = row.append(button("<gold>[ close, queue players ]</gold>",
+                    "/maintenance hold ", false,
+                    "Everyone can connect and waits in limbo, released automatically"));
+            row = row.append(Component.text("  "));
+            row = row.append(button("<red>[ close, turn away ]</red>",
+                    "/maintenance lock ", false,
+                    "Nobody but the allowlist can connect at all"));
             row = row.append(Component.text("  "));
             row = row.append(button("<aqua>[ pre-launch ]</aqua>",
                     "/maintenance prelaunch ", false, "Type a reason, then enter"));
@@ -172,7 +182,8 @@ public final class MaintenanceCommand implements SimpleCommand {
                 .hoverEvent(HoverEvent.showText(Component.text(hover)));
     }
 
-    private void open(CommandSource source, Locale locale, MaintenanceMode mode, String[] rest) {
+    private void open(CommandSource source, Locale locale, MaintenanceMode mode, String[] rest,
+                      boolean holdPlayers) {
         if (rest.length == 0) {
             source.sendMessage(lang.get("command.usage", locale));
             return;
@@ -191,15 +202,18 @@ public final class MaintenanceCommand implements SimpleCommand {
         }
 
         UUID actor = identityOf(source);
-        service.open(mode, reason, Set.of(), duration, actor).whenComplete((window, failure) -> {
+        service.open(mode, reason, Set.of(), duration, actor, holdPlayers)
+                .whenComplete((window, failure) -> {
             if (failure != null) {
                 logger.error("Could not open a maintenance window", failure);
                 source.sendMessage(lang.get("error.storage", locale));
                 return;
             }
             audit.record(sourceKind(source), nameOf(source), actor, "OPEN",
-                    mode.name() + " " + reason + duration.map(d -> " for " + Durations.describe(d)).orElse(""));
-            source.sendMessage(lang.get("command.opened", locale, "mode", mode.name(), "reason", reason));
+                    mode.name() + (holdPlayers ? " hold" : " lock") + " " + reason
+                            + duration.map(d -> " for " + Durations.describe(d)).orElse(""));
+            source.sendMessage(lang.get(holdPlayers ? "command.opened-hold" : "command.opened-lock",
+                    locale, "mode", mode.name(), "reason", reason));
         });
     }
 
@@ -413,8 +427,8 @@ public final class MaintenanceCommand implements SimpleCommand {
     public List<String> suggest(Invocation invocation) {
         String[] args = invocation.arguments();
         if (args.length <= 1) {
-            return List.of("status", "on", "prelaunch", "off", "schedule", "unschedule",
-                    "server", "allow", "webhook");
+            return List.of("status", "on", "hold", "lock", "prelaunch", "off", "schedule",
+                    "unschedule", "server", "allow", "webhook");
         }
         if (args[0].equalsIgnoreCase("server") && args.length == 2) {
             List<String> servers = new ArrayList<>();

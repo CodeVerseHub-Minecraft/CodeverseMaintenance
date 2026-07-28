@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
 @Plugin(
         id = "codeverse-maintenance",
         name = "Codeverse Maintenance",
-        version = "0.1.0",
+        version = "0.1.1",
         description = "Maintenance and pre-launch gating for the Codeverse network",
         authors = {"CodeVerseHub-Minecraft Subteam"},
         // Not optional. This plugin compiles against the shared API and never
@@ -86,6 +86,12 @@ public final class CodeverseMaintenance {
     private MaintenanceServiceImpl service;
     private MaintenanceGate gate;
     private HttpControlServer control;
+    // Whether the warning for the current schedule has been sent.
+    private volatile boolean warned;
+    // The mode as of the last transition this plugin acted on. A window that
+    // lapses does so by the clock rather than by a command, so nothing would
+    // otherwise notice, and the players held for it would wait for ever.
+    private volatile MaintenanceMode actedOn = MaintenanceMode.OPEN;
     private ExecutorService executor;
 
     @Inject
@@ -184,6 +190,7 @@ public final class CodeverseMaintenance {
 
     /** Reacts to a window opening or closing: moves players, announces, records. */
     private void onTransition(MaintenanceServiceImpl.Transition transition) {
+        actedOn = transition.current();
         Instant now = Instant.now();
         if (transition.current().isClosed()) {
             MaintenanceWindow window = transition.window().orElseThrow();
@@ -207,9 +214,7 @@ public final class CodeverseMaintenance {
      * costs limbo capacity that a short restart genuinely benefits from.
      */
     private void enforceOnConnected(MaintenanceWindow window) {
-        Optional<java.time.Duration> length = window.remainingAt(Instant.now());
-        boolean hold = config.hold.holdOnClose
-                && length.map(d -> d.toMinutes() <= config.hold.holdMaximumMinutes).orElse(false);
+        boolean hold = state.holdPlayers();
 
         for (Player player : proxy.getAllPlayers()) {
             if (gate.mayPass(player)) {
@@ -229,17 +234,36 @@ public final class CodeverseMaintenance {
     }
 
     private void announceClosed(MaintenanceWindow window, Instant now) {
-        String description = window.reason()
-                + window.endsAt().map(end -> "\n\nBack " + DiscordWebhook.timestamp(end, 'R')
-                        + " (" + DiscordWebhook.timestamp(end, 'f') + ")").orElse("");
-        webhook.announce(window.mode() == MaintenanceMode.PRE_LAUNCH
-                ? "Codeverse is not open yet"
-                : "Maintenance in progress", description, 0xE74C3C, true);
+        boolean preLaunch = window.mode() == MaintenanceMode.PRE_LAUNCH;
+        List<DiscordWebhook.Field> fields = new java.util.ArrayList<>();
+        fields.add(new DiscordWebhook.Field("Reason", window.reason(), false));
+        fields.add(new DiscordWebhook.Field(
+                preLaunch ? "Opens" : "Back",
+                window.endsAt()
+                        .map(end -> DiscordWebhook.timestamp(end, 'R')
+                                + "  " + DiscordWebhook.timestamp(end, 'f'))
+                        .orElse("When it is ready"),
+                true));
+        fields.add(new DiscordWebhook.Field("Can I join",
+                state.holdPlayers()
+                        ? "Yes, you will wait in the lobby and be let in automatically"
+                        : "Not yet, try again when it reopens",
+                true));
+        if (!window.isNetworkWide()) {
+            fields.add(new DiscordWebhook.Field("Affected", String.join(", ", window.servers()), false));
+        }
+
+        webhook.announce(
+                preLaunch ? "Codeverse is not open yet" : "Maintenance in progress",
+                null,
+                preLaunch ? 0x3498DB : 0xE74C3C,
+                true,
+                fields);
     }
 
     private void announceOpen(Instant now) {
-        webhook.announce("Network is open",
-                "Maintenance finished " + DiscordWebhook.timestamp(now, 'R') + ".", 0x2ECC71, false);
+        webhook.announce("The network is open", null, 0x2ECC71, false,
+                List.of(new DiscordWebhook.Field("Reopened", DiscordWebhook.timestamp(now, 'R'), true)));
     }
 
     /** Remembers who connected from where, so the server list can greet them next time. */
@@ -267,26 +291,99 @@ public final class CodeverseMaintenance {
      */
     private void scheduleUpkeep() {
         proxy.getScheduler().buildTask(this, () -> {
-            state.upcoming().ifPresent(next -> {
-                if (next.startsInAt(Instant.now()).isEmpty()) {
-                    // Its start has passed, so it becomes the active window.
-                    service.open(next.mode(), next.reason(), next.servers(),
-                                    next.endsAt().map(end -> java.time.Duration.between(Instant.now(), end)),
-                                    null)
-                            .thenRun(() -> {
-                                try {
-                                    state.clearSchedule();
-                                } catch (java.io.IOException failure) {
-                                    logger.error("A scheduled window activated but could not be cleared "
-                                            + "from the schedule, so it may activate again.", failure);
-                                }
-                                audit.record(AuditLog.Source.SCHEDULE, "schedule", null, "OPEN",
-                                        next.mode().name() + " " + next.reason());
-                            });
-                }
-            });
+            try {
+                reactToClockChanges();
+                activateDueSchedule();
+                warnBeforeScheduled();
+            } catch (RuntimeException failure) {
+                logger.error("Maintenance upkeep failed", failure);
+            }
             ipMemory.sweep();
-        }).repeat(30, TimeUnit.SECONDS).schedule();
+        }).repeat(10, TimeUnit.SECONDS).schedule();
+    }
+
+    /**
+     * Notices a window that lapsed rather than being closed.
+     *
+     * A window with a duration ends by the clock, so no command fires and
+     * nothing would otherwise react. The gate and the server list correct
+     * themselves because both read the state fresh, but the players being held
+     * for that window would wait for ever, no announcement would say the
+     * network was back, and the audit would show a closing with no reopening.
+     */
+    private void reactToClockChanges() {
+        MaintenanceMode current = state.mode();
+        if (current == actedOn) {
+            return;
+        }
+        MaintenanceMode previous = actedOn;
+        actedOn = current;
+        if (!current.isClosed()) {
+            logger.info("The maintenance window ended on schedule. Releasing {} held players.",
+                    holds.heldCount());
+            audit.record(AuditLog.Source.SCHEDULE, "clock", null, "EXPIRE",
+                    previous.name() + " lapsed");
+            announceOpen(Instant.now());
+            holds.releaseAll();
+        }
+    }
+
+    /** Opens a scheduled window once its moment has arrived. */
+    private void activateDueSchedule() {
+        state.dueSchedule().ifPresent(due -> {
+            java.time.Duration length = due.endsAt()
+                    .map(end -> java.time.Duration.between(Instant.now(), end))
+                    .filter(remaining -> !remaining.isNegative() && !remaining.isZero())
+                    .orElse(null);
+            service.open(due.mode(), due.reason(), due.servers(),
+                            Optional.ofNullable(length), null)
+                    .whenComplete((window, failure) -> {
+                        if (failure != null) {
+                            logger.error("A scheduled window was due but could not be opened. It stays "
+                                    + "scheduled and will be retried.", failure);
+                            return;
+                        }
+                        try {
+                            state.clearSchedule();
+                        } catch (java.io.IOException clearFailure) {
+                            logger.error("A scheduled window activated but could not be cleared from the "
+                                    + "schedule, so it may activate again.", clearFailure);
+                        }
+                        warned = false;
+                        audit.record(AuditLog.Source.SCHEDULE, "schedule", null, "OPEN",
+                                due.mode().name() + " " + due.reason());
+                    });
+        });
+    }
+
+    /**
+     * Tells players a scheduled window is coming, once.
+     *
+     * Sent once rather than on every pass, because a countdown repeated every
+     * ten seconds is noise people learn to ignore, and the point is that they
+     * have time to finish what they are doing and log off deliberately.
+     */
+    private void warnBeforeScheduled() {
+        Optional<MaintenanceWindow> next = state.upcoming();
+        if (next.isEmpty()) {
+            warned = false;
+            return;
+        }
+        Optional<java.time.Duration> until = next.get().startsInAt(Instant.now());
+        if (until.isEmpty() || warned) {
+            return;
+        }
+        if (until.get().toSeconds() > config.hold.warningSeconds) {
+            return;
+        }
+        warned = true;
+        for (Player player : proxy.getAllPlayers()) {
+            player.sendMessage(lang.get("notice.closing-soon", player.getEffectiveLocale(),
+                    "remaining", Durations.describe(until.get()),
+                    "reason", next.get().reason()));
+        }
+        logger.info("Warned {} players that a scheduled window begins in {}.",
+                proxy.getAllPlayers().size(), Durations.describe(until.get()));
     }
 
     @Subscribe

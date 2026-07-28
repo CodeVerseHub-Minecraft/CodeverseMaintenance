@@ -98,6 +98,8 @@
     "usage": [
       "<gray>Usage</gray>",
       "<white>/maintenance status</white>",
+      "<white>/maintenance lock <duration> <reason></white>",
+      "<white>/maintenance hold <duration> <reason></white>",
       "<white>/maintenance on <reason></white>",
       "<white>/maintenance prelaunch <reason></white>",
       "<white>/maintenance off</white>",
@@ -110,7 +112,11 @@
     "bad-moment": "<red>Could not read that time.</red> <gray>Use 3d, 2h30m, or an instant like 2026-03-15T18:00:00Z.</gray>",
     "schedule-in-past": "<red>That moment has already passed.</red>",
     "scheduled": "<green>Scheduled.</green> <gray><mode> begins in <white><starts></white>.</gray>",
-    "unscheduled": "<green>Schedule cleared.</green>"
+    "unscheduled": "<green>Schedule cleared.</green>",
+    "opened-hold": "<green>Network closed, players queue in limbo.</green> <gray><mode>, <reason></gray>",
+    "opened-lock": "<green>Network closed, arrivals turned away.</green> <gray><mode>, <reason></gray>",
+    "status-hold": "<gray>Arrivals</gray> <gold>queue in limbo</gold> <dark_gray>|</dark_gray> <white><held></white> <gray>waiting</gray>",
+    "status-lock": "<gray>Arrivals</gray> <red>turned away</red>"
   },
   "error": {
     "storage": "<red>That could not be saved.</red> <gray>Nothing changed.</gray>"

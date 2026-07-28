@@ -98,6 +98,8 @@
     "usage": [
       "<gray>Nutzung</gray>",
       "<white>/maintenance status</white>",
+      "<white>/maintenance lock <Dauer> <Grund></white>",
+      "<white>/maintenance hold <Dauer> <Grund></white>",
       "<white>/maintenance on <Grund></white>",
       "<white>/maintenance prelaunch <Grund></white>",
       "<white>/maintenance off</white>",
@@ -110,7 +112,11 @@
     "bad-moment": "<red>Diese Zeit konnte nicht gelesen werden.</red> <gray>Nutze 3d, 2h30m oder einen Zeitpunkt wie 2026-03-15T18:00:00Z.</gray>",
     "schedule-in-past": "<red>Dieser Zeitpunkt ist bereits vorbei.</red>",
     "scheduled": "<green>Geplant.</green> <gray><mode> beginnt in <white><starts></white>.</gray>",
-    "unscheduled": "<green>Planung gelöscht.</green>"
+    "unscheduled": "<green>Planung gelöscht.</green>",
+    "opened-hold": "<green>Netzwerk geschlossen, Spieler warten im Limbo.</green> <gray><mode>, <reason></gray>",
+    "opened-lock": "<green>Netzwerk geschlossen, Ankommende werden abgewiesen.</green> <gray><mode>, <reason></gray>",
+    "status-hold": "<gray>Ankommende</gray> <gold>warten im Limbo</gold> <dark_gray>|</dark_gray> <white><held></white> <gray>wartend</gray>",
+    "status-lock": "<gray>Ankommende</gray> <red>werden abgewiesen</red>"
   },
   "error": {
     "storage": "<red>Das konnte nicht gespeichert werden.</red> <gray>Nichts wurde geändert.</gray>"
