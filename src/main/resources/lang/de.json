@@ -1,0 +1,118 @@
+{
+  "gate": {
+    "maintenance": [
+      "<red>Das Netzwerk ist wegen Wartung geschlossen.</red>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Zurück in <white><remaining></white>.</gray>"
+    ],
+    "maintenance-open-ended": [
+      "<red>Das Netzwerk ist wegen Wartung geschlossen.</red>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Updates gibt es auf Discord.</gray>"
+    ],
+    "pre-launch": [
+      "<aqua>Codeverse ist noch nicht geöffnet.</aqua>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Öffnet in <white><remaining></white>.</gray>"
+    ],
+    "pre-launch-open-ended": [
+      "<aqua>Codeverse ist noch nicht geöffnet.</aqua>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Das Datum gibt es auf Discord.</gray>"
+    ],
+    "server-closed": "<red>Dieser Server ist wegen Wartung geschlossen.</red> <gray><reason></gray>",
+    "held": [
+      "<gold>Das Netzwerk ist gerade geschlossen.</gold>",
+      "<gray>Du bist im Warteraum und wirst automatisch eingelassen.</gray>"
+    ],
+    "released": "<green>Die Wartung ist vorbei. Du wirst weitergeleitet.</green>"
+  },
+  "notice": {
+    "closing-soon": "<gold>Die Wartung beginnt in <white><remaining></white>.</gold> <gray><reason></gray>",
+    "closing-now": "<gold>Die Wartung beginnt. Du kommst in den Warteraum.</gold>",
+    "closing-now-kick": [
+      "<red>Das Netzwerk schliesst wegen Wartung.</red>",
+      "",
+      "<gray><reason></gray>"
+    ],
+    "allowed-through": "<green>Wartung ist aktiv, aber du stehst auf der Liste.</green>"
+  },
+  "motd": {
+    "open": "<gray>Codeverse Netzwerk</gray>",
+    "maintenance": [
+      "<red>Wartung</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Zurück in <white><remaining></white></gray>"
+    ],
+    "maintenance-open-ended": [
+      "<red>Wartung</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Updates auf Discord</gray>"
+    ],
+    "pre-launch": [
+      "<aqua>Öffnet bald</aqua> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Öffnet in <white><remaining></white></gray>"
+    ],
+    "pre-launch-open-ended": [
+      "<aqua>Öffnet bald</aqua> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Das Datum gibt es auf Discord</gray>"
+    ],
+    "welcome-back-allowed": [
+      "<red>Wartung</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<green>Willkommen zurück <white><player></white>, du kannst rein</green>"
+    ],
+    "welcome-back": [
+      "<red>Wartung</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Hi <white><player></white>, zurück in <white><remaining></white></gray>"
+    ],
+    "version-closed": "Wartung"
+  },
+  "command": {
+    "header": "<dark_gray><st>            </st></dark_gray> <white>Wartung</white> <dark_gray><st>            </st></dark_gray>",
+    "status-open": "<gray>Status</gray> <green>offen</green>",
+    "status-closed": "<gray>Status</gray> <red><mode></red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+    "status-remaining": "<gray>Endet in</gray> <white><remaining></white>",
+    "status-open-ended": "<gray>Endet</gray> <white>wenn du es sagst</white>",
+    "status-servers": "<gray>Betrifft</gray> <white><servers></white>",
+    "status-allowed": "<gray>Erlaubt</gray> <white><count></white> <gray>Identitäten, <white><breakglass></white> Notfallzugang</gray>",
+    "status-identity-down": "<gold>Identitätsprüfung nicht verfügbar. Nur Notfallzugänge kommen durch.</gold>",
+    "status-upcoming": "<gray>Geplant</gray> <white><mode></white> <gray>in</gray> <white><starts></white>",
+    "opened": "<green>Netzwerk geschlossen.</green> <gray><mode>, <reason></gray>",
+    "closed": "<green>Netzwerk offen.</green> <gray><white><held></white> wartende Spieler werden eingelassen.</gray>",
+    "already-open": "<gray>Das Netzwerk ist bereits offen.</gray>",
+    "allow-added": "<green><white><player></white> zur Liste hinzugefügt.</green>",
+    "allow-removed": "<green><white><player></white> von der Liste entfernt.</green>",
+    "allow-unknown": "<red>Keine Identität für <white><player></white> gefunden.</red> <gray>Sie müssen vorher einmal gejoint sein.</gray>",
+    "allow-needs-identity": "<red>Identitätsprüfung nicht verfügbar, die Liste kann nicht bearbeitet werden.</red> <gray>Nutze Notfall UUIDs in der Config.</gray>",
+    "webhook-sent": "<green>Testnachricht an den Webhook gesendet.</green>",
+    "webhook-failed": "<red>Webhook Test fehlgeschlagen.</red> <gray><error></gray>",
+    "webhook-disabled": "<gray>Der Webhook ist in der Config deaktiviert.</gray>",
+    "no-permission": "<red>Dazu hast du keine Berechtigung.</red>",
+    "players-only": "<red>Das kann nur ein Spieler ausführen.</red>",
+    "usage": [
+      "<gray>Nutzung</gray>",
+      "<white>/maintenance status</white>",
+      "<white>/maintenance on <Grund></white>",
+      "<white>/maintenance prelaunch <Grund></white>",
+      "<white>/maintenance off</white>",
+      "<white>/maintenance server <name> on|off</white>",
+      "<white>/maintenance schedule <when> [duration] <reason></white>",
+      "<white>/maintenance allow add|remove <Spieler></white>",
+      "<white>/maintenance webhook test</white>"
+    ],
+    "bad-duration": "<red>Diese Dauer konnte nicht gelesen werden.</red> <gray>Versuche 30m, 2h, 1d.</gray>",
+    "bad-moment": "<red>Diese Zeit konnte nicht gelesen werden.</red> <gray>Nutze 3d, 2h30m oder einen Zeitpunkt wie 2026-03-15T18:00:00Z.</gray>",
+    "schedule-in-past": "<red>Dieser Zeitpunkt ist bereits vorbei.</red>",
+    "scheduled": "<green>Geplant.</green> <gray><mode> beginnt in <white><starts></white>.</gray>",
+    "unscheduled": "<green>Planung gelöscht.</green>"
+  },
+  "error": {
+    "storage": "<red>Das konnte nicht gespeichert werden.</red> <gray>Nichts wurde geändert.</gray>"
+  }
+}

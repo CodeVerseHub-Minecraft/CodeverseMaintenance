@@ -1,0 +1,118 @@
+{
+  "gate": {
+    "maintenance": [
+      "<red>The network is closed for maintenance.</red>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Back in <white><remaining></white>.</gray>"
+    ],
+    "maintenance-open-ended": [
+      "<red>The network is closed for maintenance.</red>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Follow Discord for updates.</gray>"
+    ],
+    "pre-launch": [
+      "<aqua>Codeverse is not open yet.</aqua>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Opening in <white><remaining></white>.</gray>"
+    ],
+    "pre-launch-open-ended": [
+      "<aqua>Codeverse is not open yet.</aqua>",
+      "",
+      "<gray><reason></gray>",
+      "",
+      "<gray>Follow Discord for the launch date.</gray>"
+    ],
+    "server-closed": "<red>That server is closed for maintenance.</red> <gray><reason></gray>",
+    "held": [
+      "<gold>The network is closed right now.</gold>",
+      "<gray>You are in the waiting room and will be let in automatically.</gray>"
+    ],
+    "released": "<green>Maintenance is over. Sending you through.</green>"
+  },
+  "notice": {
+    "closing-soon": "<gold>Maintenance begins in <white><remaining></white>.</gold> <gray><reason></gray>",
+    "closing-now": "<gold>Maintenance is starting. Moving you to the waiting room.</gold>",
+    "closing-now-kick": [
+      "<red>The network is closing for maintenance.</red>",
+      "",
+      "<gray><reason></gray>"
+    ],
+    "allowed-through": "<green>Maintenance is on, but you are on the list.</green>"
+  },
+  "motd": {
+    "open": "<gray>Codeverse Network</gray>",
+    "maintenance": [
+      "<red>Maintenance</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Back in <white><remaining></white></gray>"
+    ],
+    "maintenance-open-ended": [
+      "<red>Maintenance</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Follow Discord for updates</gray>"
+    ],
+    "pre-launch": [
+      "<aqua>Opening soon</aqua> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Opens in <white><remaining></white></gray>"
+    ],
+    "pre-launch-open-ended": [
+      "<aqua>Opening soon</aqua> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Follow Discord for the date</gray>"
+    ],
+    "welcome-back-allowed": [
+      "<red>Maintenance</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<green>Welcome back <white><player></white>, you can join</green>"
+    ],
+    "welcome-back": [
+      "<red>Maintenance</red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+      "<gray>Hi <white><player></white>, back in <white><remaining></white></gray>"
+    ],
+    "version-closed": "Maintenance"
+  },
+  "command": {
+    "header": "<dark_gray><st>            </st></dark_gray> <white>Maintenance</white> <dark_gray><st>            </st></dark_gray>",
+    "status-open": "<gray>Status</gray> <green>open</green>",
+    "status-closed": "<gray>Status</gray> <red><mode></red> <dark_gray>|</dark_gray> <gray><reason></gray>",
+    "status-remaining": "<gray>Lifts in</gray> <white><remaining></white>",
+    "status-open-ended": "<gray>Lifts</gray> <white>when you say so</white>",
+    "status-servers": "<gray>Affects</gray> <white><servers></white>",
+    "status-allowed": "<gray>Allowed</gray> <white><count></white> <gray>identities, <white><breakglass></white> break glass</gray>",
+    "status-identity-down": "<gold>Identity lookups are unavailable. Only break glass accounts can pass.</gold>",
+    "status-upcoming": "<gray>Scheduled</gray> <white><mode></white> <gray>in</gray> <white><starts></white>",
+    "opened": "<green>Network closed.</green> <gray><mode>, <reason></gray>",
+    "closed": "<green>Network open.</green> <gray>Releasing <white><held></white> held players.</gray>",
+    "already-open": "<gray>The network is already open.</gray>",
+    "allow-added": "<green>Added <white><player></white> to the allowlist.</green>",
+    "allow-removed": "<green>Removed <white><player></white> from the allowlist.</green>",
+    "allow-unknown": "<red>No identity found for <white><player></white>.</red> <gray>They must have joined once before.</gray>",
+    "allow-needs-identity": "<red>Identity lookups are unavailable, so the allowlist cannot be edited.</red> <gray>Use break glass uuids in config.</gray>",
+    "webhook-sent": "<green>Test message sent to the webhook.</green>",
+    "webhook-failed": "<red>Webhook test failed.</red> <gray><error></gray>",
+    "webhook-disabled": "<gray>The webhook is disabled in config.</gray>",
+    "no-permission": "<red>You do not have permission for that.</red>",
+    "players-only": "<red>That can only be run by a player.</red>",
+    "usage": [
+      "<gray>Usage</gray>",
+      "<white>/maintenance status</white>",
+      "<white>/maintenance on <reason></white>",
+      "<white>/maintenance prelaunch <reason></white>",
+      "<white>/maintenance off</white>",
+      "<white>/maintenance server <name> on|off</white>",
+      "<white>/maintenance schedule <when> [duration] <reason></white>",
+      "<white>/maintenance allow add|remove <player></white>",
+      "<white>/maintenance webhook test</white>"
+    ],
+    "bad-duration": "<red>Could not read that duration.</red> <gray>Try 30m, 2h, 1d.</gray>",
+    "bad-moment": "<red>Could not read that time.</red> <gray>Use 3d, 2h30m, or an instant like 2026-03-15T18:00:00Z.</gray>",
+    "schedule-in-past": "<red>That moment has already passed.</red>",
+    "scheduled": "<green>Scheduled.</green> <gray><mode> begins in <white><starts></white>.</gray>",
+    "unscheduled": "<green>Schedule cleared.</green>"
+  },
+  "error": {
+    "storage": "<red>That could not be saved.</red> <gray>Nothing changed.</gray>"
+  }
+}
