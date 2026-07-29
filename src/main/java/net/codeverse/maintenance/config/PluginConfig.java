@@ -195,12 +195,11 @@ public final class PluginConfig {
             throw new IllegalStateException("gate.bypassPermission cannot be blank");
         }
         for (String raw : gate.breakGlassUuids) {
-            try {
-                UUID.fromString(raw);
-            } catch (IllegalArgumentException malformed) {
+            if (parseUuid(raw).isEmpty()) {
                 throw new IllegalStateException("gate.breakGlassUuids contains '" + raw + "', which is not "
-                        + "a uuid. This list is the way back in when the database is unreachable, so a "
-                        + "typo here is only discovered at the worst moment.");
+                        + "a uuid in either the hyphenated or the plain 32 character form. This list is "
+                        + "the way back in when the database is unreachable, so a typo here would only be "
+                        + "discovered at the worst possible moment.");
             }
         }
         if (motd.addressMemoryHours < 1) {
@@ -229,8 +228,35 @@ public final class PluginConfig {
     public List<UUID> breakGlass() {
         List<UUID> parsed = new ArrayList<>(gate.breakGlassUuids.size());
         for (String raw : gate.breakGlassUuids) {
-            parsed.add(UUID.fromString(raw));
+            parseUuid(raw).ifPresent(parsed::add);
         }
         return parsed;
+    }
+
+    /**
+     * Reads a uuid in either form people actually have one in.
+     *
+     * Mojang's API returns them as thirty two characters with no hyphens, which
+     * is therefore the form anybody copying one will paste, while
+     * UUID.fromString accepts only the hyphenated form. Insisting on hyphens
+     * meant the most natural thing an operator could do produced a refusal to
+     * start, and because this list is read during startup that took the gate
+     * down with it.
+     */
+    public static java.util.Optional<UUID> parseUuid(String raw) {
+        if (raw == null) {
+            return java.util.Optional.empty();
+        }
+        String trimmed = raw.trim();
+        if (trimmed.length() == 32 && trimmed.chars().allMatch(c -> Character.digit(c, 16) >= 0)) {
+            trimmed = trimmed.replaceFirst(
+                    "(\\p{XDigit}{8})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{4})(\\p{XDigit}{12})",
+                    "$1-$2-$3-$4-$5");
+        }
+        try {
+            return java.util.Optional.of(UUID.fromString(trimmed));
+        } catch (IllegalArgumentException malformed) {
+            return java.util.Optional.empty();
+        }
     }
 }

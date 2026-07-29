@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
 @Plugin(
         id = "codeverse-maintenance",
         name = "Codeverse Maintenance",
-        version = "0.1.2",
+        version = "0.1.3",
         description = "Maintenance and pre-launch gating for the Codeverse network",
         authors = {"CodeVerseHub-Minecraft Subteam"},
         // Not optional. This plugin compiles against the shared API and never

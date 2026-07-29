@@ -62,17 +62,11 @@ public final class DiscordWebhook {
         return "<t:" + instant.getEpochSecond() + ":" + style + ">";
     }
 
-    /**
-     * Posts or updates the status message.
-     *
-     * A failure is logged and swallowed. Discord being unreachable must never
-     * be the reason a maintenance window fails to open: the announcement is a
-     * courtesy and the gate is the point.
-     */
     /** A field in the embed, rendered as a labelled block rather than prose. */
     public record Field(String name, String value, boolean inline) {
     }
 
+    /** Posts or updates the status message. */
     public void announce(String title, String description, int colour, boolean resetMessage) {
         announce(title, description, colour, resetMessage, java.util.List.of());
     }
@@ -84,6 +78,10 @@ public final class DiscordWebhook {
      * has are separate: is it up, why is it down, when does it come back, and
      * can I do anything. A block of prose makes each of those something to
      * search for; a labelled field makes it something to glance at.
+     *
+     * A failure is logged and swallowed. Discord being unreachable must never
+     * be the reason a maintenance window fails to open: the announcement is a
+     * courtesy and the gate is the point.
      */
     public void announce(String title, String description, int colour, boolean resetMessage,
                          java.util.List<Field> fields) {
