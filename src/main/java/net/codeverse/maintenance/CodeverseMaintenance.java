@@ -55,7 +55,7 @@ import java.util.concurrent.TimeUnit;
 @Plugin(
         id = "codeverse-maintenance",
         name = "Codeverse Maintenance",
-        version = "0.1.1",
+        version = "0.1.2",
         description = "Maintenance and pre-launch gating for the Codeverse network",
         authors = {"CodeVerseHub-Minecraft Subteam"},
         // Not optional. This plugin compiles against the shared API and never
@@ -92,6 +92,11 @@ public final class CodeverseMaintenance {
     // lapses does so by the clock rather than by a command, so nothing would
     // otherwise notice, and the players held for it would wait for ever.
     private volatile MaintenanceMode actedOn = MaintenanceMode.OPEN;
+    // Whether startup finished. The plugin's own listeners are registered by
+    // the platform regardless, so they have to be able to tell.
+    private volatile boolean ready;
+    // Whether something optional failed and the operator should know.
+    private volatile boolean degraded;
     private ExecutorService executor;
 
     @Inject
@@ -103,11 +108,48 @@ public final class CodeverseMaintenance {
 
     @Subscribe
     public void onProxyInitialize(ProxyInitializeEvent event) {
+        // The order here is a priority order rather than a convenience one.
+        // Whether the network should be closed is the only thing this plugin
+        // exists to know, and it lives in a file with no dependencies, so it is
+        // read first and everything after it is allowed to degrade. Reading
+        // config first, as this once did, meant a stray comma in a file an
+        // operator had just edited could leave a network that was supposed to
+        // be sealed wide open.
+        try {
+            state = new StateStore(dataDirectory);
+        } catch (Exception fatal) {
+            logger.error("The maintenance state could not be read, so this plugin cannot tell whether the "
+                    + "network is supposed to be closed. It is NOT gating anything. Fix or delete "
+                    + "maintenance.json in the plugin directory and restart.", fatal);
+            return;
+        }
+
         try {
             config = PluginConfig.load(dataDirectory);
+        } catch (Exception broken) {
+            // Defaults rather than a refusal to start. A configuration mistake
+            // should cost the operator their settings, not their gate.
+            config = new PluginConfig();
+            degraded = true;
+            logger.error("config.json could not be read, so built in defaults are in use and your "
+                    + "settings are being ignored. Gating still works. Fix the file and restart.", broken);
+        }
+
+        try {
             lang = new LangManager(dataDirectory, config.language.defaultLocale,
                     config.language.usePlayerLocale, BUNDLED_LOCALES);
-            state = new StateStore(dataDirectory);
+            if (!lang.degradedLocales().isEmpty()) {
+                degraded = true;
+                logger.error("These language files could not be read and bundled text is being used "
+                        + "instead: {}. The files have been left alone.", lang.degradedLocales());
+            }
+        } catch (Exception fatal) {
+            logger.error("No language could be loaded at all, which should be impossible because the "
+                    + "text is bundled in the jar. Not gating.", fatal);
+            return;
+        }
+
+        try {
             audit = new AuditLog(dataDirectory, logger);
             webhook = new DiscordWebhook(config.webhook, logger);
             ipMemory = new IpMemory(config.motd.rememberAddresses, config.motd.addressMemoryHours);
@@ -132,23 +174,28 @@ public final class CodeverseMaintenance {
                     new MaintenanceCommand(proxy, config, state, service, allowlist, holds, lang,
                             webhook, audit, logger));
 
-            startControlInterface();
-            scheduleUpkeep();
-            warnIfLockoutPossible();
-
-            Optional<MaintenanceWindow> active = state.current();
-            logger.info("Maintenance ready. Network is {}{}, {} allowed, {} break glass, locales {}",
-                    active.map(w -> w.mode().name().toLowerCase()).orElse("open"),
-                    active.flatMap(w -> w.remainingAt(Instant.now()))
-                            .map(d -> " for " + Durations.describe(d)).orElse(""),
-                    state.allowed().size(),
-                    config.breakGlass().size(),
-                    lang.availableLocales());
-        } catch (Exception failure) {
-            logger.error("Maintenance failed to start. The network is NOT gated, so if a window was "
-                    + "meant to be active it is not being enforced.", failure);
+            actedOn = state.mode();
+            ready = true;
+        } catch (Exception fatal) {
+            logger.error("Maintenance could not finish starting, so the network is NOT being gated even "
+                    + "though the saved state may say it should be.", fatal);
             shutdownResources();
+            return;
         }
+
+        startControlInterface();
+        scheduleUpkeep();
+        warnIfLockoutPossible();
+
+        Optional<MaintenanceWindow> active = state.current();
+        logger.info("Maintenance ready. Network is {}{}, {} allowed, {} break glass, locales {}{}",
+                active.map(w -> w.mode().name().toLowerCase()).orElse("open"),
+                active.flatMap(w -> w.remainingAt(Instant.now()))
+                        .map(d -> " for " + Durations.describe(d)).orElse(""),
+                state.allowed().size(),
+                config.breakGlass().size(),
+                lang.availableLocales(),
+                degraded ? " (DEGRADED, see errors above)" : "");
     }
 
     /**
@@ -269,6 +316,13 @@ public final class CodeverseMaintenance {
     /** Remembers who connected from where, so the server list can greet them next time. */
     @Subscribe
     public void onPostLogin(PostLoginEvent event) {
+        // Velocity registers this class itself, so these fire whether or not
+        // startup finished. Without the guard a failed start produced a stack
+        // trace on every single join, which buried the one line saying what had
+        // actually gone wrong.
+        if (!ready) {
+            return;
+        }
         Player player = event.getPlayer();
         if (!(player.getRemoteAddress() instanceof InetSocketAddress socket)) {
             return;
@@ -282,6 +336,9 @@ public final class CodeverseMaintenance {
 
     @Subscribe
     public void onDisconnect(DisconnectEvent event) {
+        if (!ready) {
+            return;
+        }
         holds.forget(event.getPlayer().getUniqueId());
     }
 
@@ -300,6 +357,18 @@ public final class CodeverseMaintenance {
             }
             ipMemory.sweep();
         }).repeat(10, TimeUnit.SECONDS).schedule();
+
+        // A closed network that nobody can enter is worth repeating rather than
+        // saying once at boot, because the boot line scrolls away and the
+        // situation does not.
+        proxy.getScheduler().buildTask(this, () -> {
+            if (state.current().isPresent() && state.allowed().isEmpty()
+                    && config.breakGlass().isEmpty()) {
+                logger.error("The network is closed and there is nobody on the allowlist and no break "
+                        + "glass uuid. Nobody can get in, including you. Add one to config.json or run "
+                        + "maintenance off from the console.");
+            }
+        }).repeat(5, TimeUnit.MINUTES).schedule();
     }
 
     /**

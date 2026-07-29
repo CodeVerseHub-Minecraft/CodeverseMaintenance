@@ -35,6 +35,7 @@ public final class LangManager {
     private static final MiniMessage MINI = MiniMessage.miniMessage();
 
     private final Map<String, Map<String, String>> locales = new LinkedHashMap<>();
+    private final List<String> degraded = new ArrayList<>();
     private final String defaultLocale;
     private final boolean usePlayerLocale;
 
@@ -47,8 +48,16 @@ public final class LangManager {
         Files.createDirectories(langDirectory);
 
         for (String locale : bundled) {
-            Map<String, String> flattened = loadLocale(langDirectory, locale);
-            locales.put(locale, flattened);
+            try {
+                locales.put(locale, loadLocale(langDirectory, locale));
+            } catch (RuntimeException corrupt) {
+                // An operator's edit that no longer parses must not stop the
+                // plugin starting, because the plugin is what keeps the network
+                // closed. The bundled text is used instead and the file is left
+                // alone so the edit can be recovered. The caller reports it.
+                locales.put(locale, flattenBundled(locale));
+                degraded.add(locale);
+            }
         }
         if (!locales.containsKey(defaultLocale)) {
             throw new IllegalStateException("The default locale '" + defaultLocale + "' is not bundled. "
@@ -74,6 +83,13 @@ public final class LangManager {
 
         Map<String, String> flattened = new LinkedHashMap<>();
         flatten("", effective, flattened);
+        return flattened;
+    }
+
+    /** The bundled text for a locale, ignoring anything on disk. */
+    private Map<String, String> flattenBundled(String locale) throws IOException {
+        Map<String, String> flattened = new LinkedHashMap<>();
+        flatten("", readBundled(locale), flattened);
         return flattened;
     }
 
@@ -153,6 +169,11 @@ public final class LangManager {
 
     public Component get(String key, String... placeholders) {
         return get(key, null, placeholders);
+    }
+
+    /** Locales whose file could not be read, so bundled text is in use. */
+    public List<String> degradedLocales() {
+        return List.copyOf(degraded);
     }
 
     public List<String> availableLocales() {
